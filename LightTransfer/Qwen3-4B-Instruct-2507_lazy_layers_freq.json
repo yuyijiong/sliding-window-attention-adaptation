@@ -1,0 +1,222 @@
+{
+    "model_path": "/share/models/Qwen3-4B-Instruct-2507",
+    "method": "frequency_count",
+    "total_samples": 1000,
+    "selected_lazy_layers": [
+        0,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        35
+    ],
+    "non_lazy_layers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        17,
+        18,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34
+    ],
+    "layer_frequencies": [
+        {
+            "layer_idx": 35,
+            "count": 1000,
+            "frequency": 1.0
+        },
+        {
+            "layer_idx": 22,
+            "count": 1000,
+            "frequency": 1.0
+        },
+        {
+            "layer_idx": 10,
+            "count": 1000,
+            "frequency": 1.0
+        },
+        {
+            "layer_idx": 14,
+            "count": 1000,
+            "frequency": 1.0
+        },
+        {
+            "layer_idx": 23,
+            "count": 999,
+            "frequency": 0.999
+        },
+        {
+            "layer_idx": 8,
+            "count": 999,
+            "frequency": 0.999
+        },
+        {
+            "layer_idx": 11,
+            "count": 996,
+            "frequency": 0.996
+        },
+        {
+            "layer_idx": 7,
+            "count": 980,
+            "frequency": 0.98
+        },
+        {
+            "layer_idx": 12,
+            "count": 972,
+            "frequency": 0.972
+        },
+        {
+            "layer_idx": 16,
+            "count": 960,
+            "frequency": 0.96
+        },
+        {
+            "layer_idx": 13,
+            "count": 891,
+            "frequency": 0.891
+        },
+        {
+            "layer_idx": 15,
+            "count": 820,
+            "frequency": 0.82
+        },
+        {
+            "layer_idx": 20,
+            "count": 815,
+            "frequency": 0.815
+        },
+        {
+            "layer_idx": 19,
+            "count": 799,
+            "frequency": 0.799
+        },
+        {
+            "layer_idx": 9,
+            "count": 741,
+            "frequency": 0.741
+        },
+        {
+            "layer_idx": 25,
+            "count": 705,
+            "frequency": 0.705
+        },
+        {
+            "layer_idx": 21,
+            "count": 664,
+            "frequency": 0.664
+        },
+        {
+            "layer_idx": 0,
+            "count": 579,
+            "frequency": 0.579
+        },
+        {
+            "layer_idx": 28,
+            "count": 557,
+            "frequency": 0.557
+        },
+        {
+            "layer_idx": 18,
+            "count": 351,
+            "frequency": 0.351
+        },
+        {
+            "layer_idx": 17,
+            "count": 223,
+            "frequency": 0.223
+        },
+        {
+            "layer_idx": 24,
+            "count": 216,
+            "frequency": 0.216
+        },
+        {
+            "layer_idx": 1,
+            "count": 202,
+            "frequency": 0.202
+        },
+        {
+            "layer_idx": 30,
+            "count": 180,
+            "frequency": 0.18
+        },
+        {
+            "layer_idx": 27,
+            "count": 104,
+            "frequency": 0.104
+        },
+        {
+            "layer_idx": 34,
+            "count": 73,
+            "frequency": 0.073
+        },
+        {
+            "layer_idx": 32,
+            "count": 69,
+            "frequency": 0.069
+        },
+        {
+            "layer_idx": 2,
+            "count": 35,
+            "frequency": 0.035
+        },
+        {
+            "layer_idx": 6,
+            "count": 29,
+            "frequency": 0.029
+        },
+        {
+            "layer_idx": 31,
+            "count": 14,
+            "frequency": 0.014
+        },
+        {
+            "layer_idx": 26,
+            "count": 9,
+            "frequency": 0.009
+        },
+        {
+            "layer_idx": 29,
+            "count": 8,
+            "frequency": 0.008
+        },
+        {
+            "layer_idx": 33,
+            "count": 5,
+            "frequency": 0.005
+        },
+        {
+            "layer_idx": 4,
+            "count": 4,
+            "frequency": 0.004
+        },
+        {
+            "layer_idx": 5,
+            "count": 1,
+            "frequency": 0.001
+        }
+    ]
+}
