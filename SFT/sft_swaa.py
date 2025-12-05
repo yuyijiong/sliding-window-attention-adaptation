@@ -5,15 +5,9 @@ os.environ["SWAA_DEBUG"]="0"  #1 or 0
 
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Add parent directory to path
-sys.path.append("../Patch")  # Add path to Patch directory
-
 # hack vllm and transformers for SWAA
-from swaa_config import SWAAConfig
-from hack_hf_swaa import hack_hf_swaa
-from hack_vllm_0110_swaa import hack_vllm_swaa
-
+from swaa_patch import SWAAConfig,hack_hf_swaa
 hack_hf_swaa(training=True)
-hack_vllm_swaa()
 
 import pathlib
 import torch
@@ -81,7 +75,7 @@ def main(model_path,dataset_list,swaa_config:SWAAConfig):
         save_strategy='epoch',
         per_device_train_batch_size=1,
         gradient_accumulation_steps=8,
-        logging_steps=5,
+        logging_steps=10,
         bf16=True,
         fp16=False,
         deepspeed=None,
@@ -181,9 +175,8 @@ def main(model_path,dataset_list,swaa_config:SWAAConfig):
     )
 
     trainer.train(resume_from_checkpoint=False)
-
     # Merge LoRA weights and save in main process
-    if train_args.distributed_state.is_main_process:
+    if train_args.distributed_state.is_main_process and not trainer.is_fsdp_enabled:
         merged_model_path=output_dir+"/final-merged"
         pathlib.Path(merged_model_path).mkdir(parents=True, exist_ok=True)
         merged_model = model.merge_and_unload()

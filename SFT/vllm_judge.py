@@ -50,6 +50,7 @@ def vllm_judge(device_id,ds:pd.DataFrame,model_path,max_prompt_len=10000,max_com
 
     # The DataFrame slice is handled outside of this function
     ds['response'] = ""  # Initialize the response column
+    ds.reset_index(drop=True, inplace=True)
 
     llm = LLM(model=model_path,
               dtype="float16",
@@ -75,14 +76,11 @@ def vllm_judge(device_id,ds:pd.DataFrame,model_path,max_prompt_len=10000,max_com
         outputs = llm.generate(prompts=batch_prompts, sampling_params=sampling_params, use_tqdm=False)
         if num_generations==1:
             response = [o.outputs[0].text for o in outputs]
-            # if i == 0:
-            #     print("\nExample Response:", response[0])            # Print first response
+            ds.loc[i:i + batch_size - 1, 'response'] = response
         else:
             response = [[o.outputs[j].text for j in range(num_generations)] for o in outputs]
-            # Print first response
-            # if i == 0:
-            #     print("\nExample Response:", response[0][0])            # Print first response
-        ds.loc[i:i + batch_size-1, 'response'] = response
+            for idx in range(len(response)):
+                ds.at[i + idx, 'response'] = response[idx]
 
     return ds
 
@@ -135,13 +133,6 @@ def vllm_eval(ds,judge_model_path,device_list)->pd.DataFrame:
     # Multi-GPU generation
     devices_num=len(device_list)
 
-    from long_mem_eval.gpu_memory_check import check_gpu_memory_usage
-    gpus_are_ready = check_gpu_memory_usage(
-        threshold_percentage=5,
-        check_interval_seconds=60 * 20,
-        gpus=device_list
-    )
-
     process_num = len(device_list)
 
     if devices_num>1:
@@ -174,7 +165,7 @@ if __name__ == '__main__':
     model_path="/share/models/Qwen3-4B-Instruct-2507"
     model_name=model_path.split("/")[-1] if "checkpoint" not in model_path else "-".join(model_path.split("/")[-2:])
 
-    dataset_path = "//share/yyj/llm_as_memory/long_mem_eval/output/fusang_long_Qwen3-30B-A3B-Thinking-2507__vllm_ngen4.parquet"
+    dataset_path = "./fusang_long_Qwen3-30B-A3B-Thinking-2507__vllm_ngen4.parquet"
     is_thinking_model="thinking" in dataset_path.lower()
     print("is thinking model:", is_thinking_model)
 

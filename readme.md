@@ -2,7 +2,7 @@
 This repository contains code and resources for the paper titled "Sliding Window Attention Adaptation"
 
 ## Installation
-1. Make sure you install the requirements:
+1. Make sure you have installed the requirements:
 ```
 vllm >= 0.11.0,<0.12.0
 transformers >= 4.57.0
@@ -15,13 +15,17 @@ cd flash-attention-SWAA
 bash install.sh
 ```
 * CUDA >=12.8 is recommended.
-* You need to compile from source, so it may take some time.
-* It will overwrite any existing flash-attn installation in your environment.
+* You need to compile from source code, so it may take some time.
+* It will overwrite any existing flash-attn installation in your environment, so you'd better create a new python environment.
 * Note that if nvcc compilation fails, you can try to set a smaller `MAX_JOBS` in `install.sh`, e.g., `export MAX_JOBS=4`.
 
 3. This repository doesn't need to be installed as a package. Just clone it to your local machine and run (or import) the scripts directly.
 
 ## Usage
+
+### Supported Models
+- Currently we only support `Qwen3, Qwen2, Qwen3MoE, Llama` models
+
 
 ### Sliding Window Attention Adaptation (SWAA) Config
 SWAAConfig usually has 4 parameters to set:
@@ -31,16 +35,16 @@ SWAAConfig usually has 4 parameters to set:
 - `non_sliding_layers`: the list of layer indices that do not use sliding window attention. Default is `[]`, which means all layers use sliding window attention.
 
 ### Core code
-- The core code for SWAA is in the `Patch` folder. It uses monkey patching to modify the attention mechanism of transformers and vLLM.
-- Currently we only support `Qwen3, Qwen2, Qwen3MoE, Llama` models
+- The core code for SWAA is in the `swaa_patch` folder. It uses monkey patching to modify the attention mechanism of transformers and vLLM.
 
 1. To use transformers (HuggingFace) with SWAA:
 ```python
-# include "Patch" folder 
-import sys
-sys.path.append("./sliding-window-attention-adaptation/Patch")
-# before running your code, import the function from hack_hf_swaa.py to patch transformers
-from hack_hf_swaa import hack_hf_swaa, SWAAConfig
+# make sure the "swaa_patch" folder is in your PYTHONPATH or sys.path, for example:
+# import sys
+# sys.path.append("./sliding-window-attention-adaptation")
+
+# Then, before running your code, import the function hack_hf_swaa to patch transformers
+from swaa_patch import SWAAConfig,hack_hf_swaa,hack_vllm_swaa
 hack_hf_swaa(training=False)
 ...
 # then you can load the model as usual
@@ -66,11 +70,12 @@ outputs = model.generate(**inputs)
 
 2. To use vLLM offline inference with SWAA:
 ```python
-# include "Patch" folder 
-import sys
-sys.path.append("./sliding-window-attention-adaptation/Patch")
-# before running your code, import the function from hack_vllm_0110_swaa.py to patch vLLM
-from hack_vllm_0110_swaa import hack_vllm_swaa
+# make sure the "swaa_patch" folder is in your PYTHONPATH or sys.path, for example:
+# import sys
+# sys.path.append("./sliding-window-attention-adaptation")
+
+# Then, before running your code, import the function hack_vllm_swaa to patch transformers
+from swaa_patch import SWAAConfig,hack_hf_swaa,hack_vllm_swaa
 hack_vllm_swaa()
 ...
 # then set your SWAA config
@@ -97,8 +102,8 @@ outputs = llm.generate(prompts=batch_prompts, sampling_params=sampling_params)
 
 3. To use vLLM server with SWAA, for example, run:
 ```bash
-# cd into "Patch" folder
-cd ./sliding-window-attention-adaptation/Patch
+# cd into "swaa_patch" folder
+cd ./sliding-window-attention-adaptation/swaa_patch
 
 # start server with the customized serve_swaa.py
 python serve_swaa.py \
@@ -134,15 +139,18 @@ python test_vllm_server.py
 
 ## Fine-tuning
 1. `./SFT/self_distill_data.py` can be used to generate self-distillation data.
-2. To run fine-tuning, refer to `./SFT/sft_swaa.py`. You can modify the parameters or code in the "main" part of the script as needed.
+2. To run fine-tuning, refer to `./SFT/sft_swaa.py`, and set your `model_path, dataset_path, SWAAConfig` in the code of the `'__main__'` part of the script.
 
 ## Efficiency Test
-1. To run efficiency test on vllm, refer to `./speed_test/time_test_vllm.sh`. You can modify the parameters in the script as needed.
-2. `./speed_test/parse_time_json.py` can collect the time test results and print them in markdown table format.
-3. To run efficiency test on HF transformers, refer to `./speed_test/speed_test_hf.py`. 
+1. To run efficiency test on vllm, refer to `./Speed/time_test_vllm.sh`. 
+The configuration of the input and output length is in `./Speed/bench_hparams.json`;
+The configuration of the model and SWAAConfig is in `./Speed/serve_hparams.json`. You can modify other parameters in the script as needed.
+2. `./Speed/parse_time_json.py` can collect the time test results and print them in markdown table format.
+3. To run efficiency test on HF transformers, refer to `./Speed/speed_test_hf.py`. 
 
 ## LightTransfer
-1. To run the baseline method LightTransfer, use `./LightTransfer/get_lazy_ratio.py`. You can modify the parameters or code in the "main" part of the script as needed.
+1. To run the baseline method LightTransfer, use `./LightTransfer/get_lazy_ratio.py`. 
+Set your `model_path, dataset_path` in the code of the `'__main__'` part of the script.
 
 ## To-do
 - [ ] Use vllm plugin system (instead of monkey patching) to integrate SWAA more flexibly.

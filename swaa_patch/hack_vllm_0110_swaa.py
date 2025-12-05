@@ -27,7 +27,7 @@ from vllm.v1.engine.llm_engine import *
 if is_flash_attn_varlen_func_available():
     from vllm.attention.utils.fa_utils import (reshape_and_cache_flash)
 import flash_attn_2_cuda_vllm
-from swaa_config import SWAAConfig
+from .swaa_config import SWAAConfig
 
 
 def flash_attn_varlen_func(
@@ -594,7 +594,7 @@ def get_impl_cls_swaa() -> type["FlashAttentionImpl"]:
 
 
 def hack_vllm_swaa():
-    from vllm_0110_swaa_models import Qwen3ModelSWAA, Qwen2ModelSWAA, LlamaModelSWAA, Qwen3MoeModelSWAA
+    from .vllm_0110_swaa_models import Qwen3ModelSWAA, Qwen2ModelSWAA, LlamaModelSWAA, Qwen3MoeModelSWAA
 
     # replace get_impl_cls with get_impl_cls_swaa to use custom implementation
     FlashAttentionBackend.get_impl_cls = get_impl_cls_swaa
@@ -613,3 +613,5 @@ def hack_vllm_swaa():
 
     # replace LLM with LLMSWAA
     vllm.LLM = LLMSWAA
+
+    print("Hacked vLLM to use SWAA.")

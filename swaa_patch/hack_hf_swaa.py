@@ -21,7 +21,7 @@ from transformers.modeling_utils import flash_attention_forward,is_flash_attn_2_
 from transformers.modeling_flash_attention_utils import _process_flash_attention_kwargs,_hf_api_to_flash_mapping
 from transformers.models.gemma2 import Gemma2Config
 from transformers.models.gemma3 import Gemma3Config
-from swaa_config import SWAAConfig
+from .swaa_config import SWAAConfig
 
 logger = logging.get_logger(__name__)
 

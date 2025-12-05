@@ -1,12 +1,18 @@
 import os
+os.environ['SWAA_DEBUG'] = '0' # Print SWAA debug info (1=yes, 0=no)
+os.environ['OPENAI_API_KEY']="" # your openai key
+os.environ['AZURE_API_KEY']=""
+
 import sys
 import time
 
-sys.path.append("../Patch/")
-os.environ['SWAA_DEBUG'] = '0' # Print SWAA debug info (1=yes, 0=no)
-
-os.environ['OPENAI_API_KEY']="" # your openai key
-os.environ['AZURE_API_KEY']=""
+# Hack vllm and transformers for SWAA (Sliding Window Attention Acceleration)
+import sys
+sys.path.append(os.path.dirname((os.path.abspath(__file__))))  # Add current directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Add parent directory to path
+from swaa_patch import SWAAConfig,hack_hf_swaa,hack_vllm_swaa
+hack_hf_swaa(training=False)
+hack_vllm_swaa() # you can comment this line if not using vllm
 
 import multiprocessing
 from multiprocessing import Pool
@@ -19,13 +25,6 @@ import setproctitle
 setproctitle.setproctitle("swaa_eval")
 encoding = tiktoken.encoding_for_model('gpt-4o')
 multiprocessing.set_start_method("spawn", force=True)
-
-# Hack vllm and transformers for SWAA (Sliding Window Attention Acceleration)
-from swaa_config import SWAAConfig
-from hack_hf_swaa import hack_hf_swaa
-from hack_vllm_0110_swaa import hack_vllm_swaa
-hack_hf_swaa(training=False)
-hack_vllm_swaa()
 
 from transformers import AutoTokenizer,AutoModelForCausalLM
 
