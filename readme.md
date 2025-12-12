@@ -153,6 +153,7 @@ python test_vllm_server.py
 ## 🏋️Fine-tuning
 1. `./SFT/self_distill_data.py` can be used to generate self-distillation data.
 2. To run fine-tuning, refer to `./SFT/sft_swaa.py`, and set your `model_path, dataset_path, SWAAConfig` in the code of the `'__main__'` part of the script.
+3. The fine-tuned models' LoRA weights in our experiments can be downloaded from [🤗HuggingFace](https://huggingface.co/yuyijiong/Qwen3-SWA-adaptation)
 
 ## ⏱️Efficiency Test
 1. To run efficiency test on vllm, refer to `./Speed/time_test_vllm.sh`. 
