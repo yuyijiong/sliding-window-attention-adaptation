@@ -1,14 +1,16 @@
 # Sliding Window Attention Adaptation
-This repository contains code and resources for the paper titled "Sliding Window Attention Adaptation"
+The code for paper ["Sliding Window Attention Adaptation"](https://arxiv.org/abs/2512.10411)
 
-## Installation
+![img_1.png](img_1.png)
+
+## 🛠️Installation
 1. Make sure you have installed the requirements:
 ```
-vllm >= 0.11.0,<0.12.0
 transformers >= 4.57.0
+vllm >= 0.11.0,<0.12.0 (optional, if you want to use vLLM)
 ```
 
-2. Install the customized flash-attention package:
+2. Install the **customized** flash-attention package:
 ```bash
 git clone https://github.com/yuyijiong/flash-attention-SWAA
 cd flash-attention-SWAA
@@ -21,23 +23,26 @@ bash install.sh
 
 3. This repository doesn't need to be installed as a package. Just clone it to your local machine and run (or import) the scripts directly.
 
-## Usage
+## ⚙️Usage
 
-### Supported Models
+### 🔮Core code
+- The core code for SWAA is in the `swaa_patch` folder. It uses monkey patching to modify the attention mechanism of transformers and vLLM.
+
+### 🤖Supported Models
 - Currently we only support `Qwen3, Qwen2, Qwen3MoE, Llama` models
 
-
-### Sliding Window Attention Adaptation (SWAA) Config
-SWAAConfig usually has 4 parameters to set:
+### 📝Sliding Window Attention Adaptation (SWAA) Config
+To apply SWAA of a model, you must set SWAAConfig. SWAAConfig usually has 4 parameters to set:
 - `sliding_window_size`: the size of the window size for sliding window attention. Default is `None`, which means using full attention.
 - `keep_first`: the number of initial tokens to always keep in attention. Default is `0`, which means no tokens are always kept.
 - `force_fa_decode`: whether to force the model to use full attention during decoding. Default is `False`.
 - `non_sliding_layers`: the list of layer indices that do not use sliding window attention. Default is `[]`, which means all layers use sliding window attention.
 
-### Core code
-- The core code for SWAA is in the `swaa_patch` folder. It uses monkey patching to modify the attention mechanism of transformers and vLLM.
 
-1. To use transformers (HuggingFace) with SWAA:
+### 🎞️Examples
+<details>
+<summary>1. To use transformers (HuggingFace) with SWAA:</summary>
+
 ```python
 # make sure the "swaa_patch" folder is in your PYTHONPATH or sys.path, for example:
 # import sys
@@ -62,13 +67,18 @@ swaa_config = SWAAConfig(
     force_fa_decode=True,
     non_sliding_layers=[1,3,5,7,9,11],
 )
-model.config.swaa_config=swaa_config
+model.config.swaa_config=swaa_config # attach SWAA config to model config. This is an informal temporary solution.
 ...
 # now you can use the model as usual
+prompt="Who are you?"
+inputs = tokenizer([prompt], return_tensors="pt").to(device_id)
 outputs = model.generate(**inputs)
 ```
+</details>
 
-2. To use vLLM offline inference with SWAA:
+<details>
+<summary>2. To use vLLM offline inference with SWAA: </summary>
+
 ```python
 # make sure the "swaa_patch" folder is in your PYTHONPATH or sys.path, for example:
 # import sys
@@ -98,9 +108,11 @@ llm = LLM(model=model_path,
 # now you can use the model as usual
 outputs = llm.generate(prompts=batch_prompts, sampling_params=sampling_params)
 ```
+</details>
 
+<details>
+<summary>3. To use vLLM server with SWAA:</summary>
 
-3. To use vLLM server with SWAA, for example, run:
 ```bash
 # cd into "swaa_patch" folder
 cd ./sliding-window-attention-adaptation/swaa_patch
@@ -122,13 +134,14 @@ python serve_swaa.py \
 cd ../Eval
 python test_vllm_server.py
 ```
+</details>
 
-## Datasets
+## 📚Datasets
 1. `./Datasets/fusang_long.parquet`: The training dataset for long-context SFT. [Download link](https://huggingface.co/datasets/yuyijiong/fusang-v1-filtered/)
 2. `./Datasets/longmemeval_24k.parquet`: The benchmark dataset for evaluation. [Download link](https://huggingface.co/datasets/yuyijiong/LongMemEval_24k)
 3. `./Datasets/longbenchv2_qa.parquet`: Another dataset for evaluation. [Download link](https://huggingface.co/datasets/yuyijiong/LongMemEval_24k)
 
-## Evaluation
+## 📈Evaluation
 1. To run evaluation, refer to `./Eval/eval_swaa.py`. You can modify the parameters or code in the "main" part of the script as needed.
 2. It is recommended to write your model path and SWAA configurations in json files, like those in `./Eval/settings_list/`. Then let `./Eval/eval_swaa.py` read them.
 3. Any dataset can be used for evaluation, but should have at least the 3 fields: 
@@ -137,22 +150,23 @@ python test_vllm_server.py
    - `answer`: the reference answer for evaluation, which should be relatively short.
 4. The evaluation results will be saved as a json file in `./Eval/eval_output/`
 
-## Fine-tuning
+## 🏋️Fine-tuning
 1. `./SFT/self_distill_data.py` can be used to generate self-distillation data.
 2. To run fine-tuning, refer to `./SFT/sft_swaa.py`, and set your `model_path, dataset_path, SWAAConfig` in the code of the `'__main__'` part of the script.
 
-## Efficiency Test
+## ⏱️Efficiency Test
 1. To run efficiency test on vllm, refer to `./Speed/time_test_vllm.sh`. 
 The configuration of the input and output length is in `./Speed/bench_hparams.json`;
 The configuration of the model and SWAAConfig is in `./Speed/serve_hparams.json`. You can modify other parameters in the script as needed.
 2. `./Speed/parse_time_json.py` can collect the time test results and print them in markdown table format.
 3. To run efficiency test on HF transformers, refer to `./Speed/speed_test_hf.py`. 
 
-## LightTransfer
-1. To run the baseline method LightTransfer, use `./LightTransfer/get_lazy_ratio.py`. 
+## 📊LightTransfer
+1. To run the baseline method [LightTransfer](https://arxiv.org/abs/2410.13846), use `./LightTransfer/get_lazy_ratio.py`. 
 Set your `model_path, dataset_path` in the code of the `'__main__'` part of the script.
+2. This method doesn't show stable improvement in our experiments, so it needs to be further investigated.
 
-## To-do
+## 📋To-do
 - [ ] Use vllm plugin system (instead of monkey patching) to integrate SWAA more flexibly.
 - [ ] Implement with Sglang
 - [ ] Implement with FlashInfer
