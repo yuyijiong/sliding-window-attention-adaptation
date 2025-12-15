@@ -1,25 +1,32 @@
 import os
-
 import multiprocessing
-multiprocessing.set_start_method("spawn", force=True)
+
+# Ensure multiprocessing works correctly
+try:
+    multiprocessing.set_start_method("spawn", force=True)
+except RuntimeError:
+    pass
 
 from tqdm import tqdm
 import sys
+
 sys.path.append("../data/")
 sys.path.append("../")
 
 import re
-
 import time
-
 import pandas as pd
 import tiktoken
-encoding = tiktoken.encoding_for_model('gpt-4o')
-from openai import OpenAI,AzureOpenAI
+from openai import OpenAI, AzureOpenAI
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import setproctitle
+
+# Set process title
 setproctitle.setproctitle("gpt-judge")
+
+# Initialize tokenizer
+encoding = tiktoken.encoding_for_model('gpt-4o')
 
 ACCURACY_PROMPT = """
 Your task is to label an answer to a question as ’CORRECT’ or ’WRONG’. You will be given the following data:
@@ -48,20 +55,24 @@ Generated answer: {generated_answer}
 First, provide a short (one sentence) explanation of your reasoning, then finish with CORRECT or WRONG.
 """
 
-def evaluate_llm_judge(question, gold_answer, generated_answer,use_azure=False):
 
+def evaluate_llm_judge(question, gold_answer, generated_answer, use_azure=False):
+    """
+    Calls the LLM to judge the correctness of the generated answer.
+    """
     if not use_azure:
-        model_name="gpt-5-nano"
-        client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY',"your_openai_api_key_here"))
+        model_name = "gpt-5-nano"
+        client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY', "your_openai_api_key_here"))
     else:
         model_name = "gpt-5-mini"
-        api_key = os.environ.get('AZURE_API_KEY',"your_azure_api_key_here")
-        client = AzureOpenAI(api_version="2024-12-01-preview",
-                             api_key=api_key,
-                             azure_endpoint="",
-                             azure_deployment=model_name)
+        api_key = os.environ.get('AZURE_API_KEY', "your_azure_api_key_here")
+        client = AzureOpenAI(
+            api_version="2024-12-01-preview",
+            api_key=api_key,
+            azure_endpoint="",
+            azure_deployment=model_name
+        )
 
-    """Evaluate the generated answer against the gold answer using an LLM judge."""
     response = client.chat.completions.create(
         model=model_name,
         messages=[
@@ -76,126 +87,223 @@ def evaluate_llm_judge(question, gold_answer, generated_answer,use_azure=False):
     )
 
     label = response.choices[0].message.content
-    result=0 if "wrong" in label.lower() else 1
+    result = 0 if "wrong" in label.lower() else 1
 
     return result
 
-def process_row(row,is_thinking_model=True, use_azure=False):
-    row = row[1]  # Get the row data from the Series
-    question = row["question"]
-    gold_answer = row["answer"]
-    response = row["response"]
 
+def extract_short_response(response, is_thinking_model=True, max_answer_len=4000):
+    """
+    Extracts the final response content.
+    For thinking models, it extracts the content after the </think> tag.
+    It returns an empty string if:
+    1. The response is not a string.
+    2. The thinking tag is missing (for thinking models).
+    3. The extracted answer exceeds max_answer_len.
+
+    Args:
+        response: The raw string response from the model.
+        is_thinking_model: Boolean indicating if the model uses thinking tags.
+        max_answer_len: Maximum allowed token length for the answer.
+
+    Returns:
+        The extracted short response string or empty string.
+    """
     if not isinstance(response, str):
-        print("Response is not a string, returning 0")
-        return 0
+        return ""
 
-    assert isinstance(question, str) and isinstance(gold_answer, str) and isinstance(response,
-                                                                                     str), "Question, gold answer, and generated answers must be strings."
+    final_answer = response
 
     if is_thinking_model:
-        # Keep content after </think>
-        if "</think>" not in response:
-            print("No </think> tag found in response, returning 0")
-            return 0
-        final_answer = response.split("</think>")[-1].strip()
-        # If final_answer is too long (over 4000 tokens), return 0
-        if len(encoding.encode(final_answer)) > 4000:
-            print("Short answer (thinking) too long, returning 0")
-            return 0
+        if "</think>" in response:
+            final_answer = response.split("</think>")[-1].strip()
+        else:
+            # Tag missing, treat as invalid
+            return ""
 
+    # Check length using tokenizer
+    if len(encoding.encode(final_answer)) > max_answer_len:
+        return ""
+
+    return final_answer
+
+
+def extract_answer_letter(response):
+    """
+    Helper: Extracts the multiple choice answer (A, B, C, D) from the response.
+    """
+    response = response.replace('*', '')
+    match = re.findall(r'The correct answer is \(([A-D])\)', response)
+    if match:
+        return match[-1]
     else:
-        final_answer = response
-        if len(encoding.encode(final_answer)) > 4000:
-            print("Answer (instruct) too long, returning 0")
-            return 0
+        match = re.findall(r'The correct answer is ([A-D])', response)
+        if match:
+            return match[-1]
+        else:
+            return ""
 
-    # Retry if generation fails (up to 3 times, with 1 min delay)
+
+# --- Parallel Evaluation Functions ---
+
+def evaluate_gpt_row(row, use_azure=False):
+    """
+    Evaluation logic for default dataset using GPT as judge.
+    Assumes 'short_response' is already populated in the row.
+    """
+    row_data = row[1]
+    question = row_data["question"]
+    gold_answer = row_data["answer"]
+    final_answer = row_data["short_response"]
+
+    # If extracted answer is empty (due to length or missing tag), fail immediately
+    if not final_answer:
+        return 0
+
+    # Retry logic if generation fails
     max_retries = 3
+    label = 0
     for attempt in range(max_retries):
         try:
             label = evaluate_llm_judge(question, gold_answer, final_answer, use_azure=use_azure)
-            break  # Success, break loop
+            break
         except Exception as e:
             print(f"Error during evaluation: {e}")
             if attempt < max_retries - 1:
                 print("Retrying...")
-                time.sleep(60)  # Wait 1 minute before retry
+                time.sleep(60)
             else:
-                # Max retries reached
                 print("Max retries reached. Returning 0.")
-                raise Exception("Failed to evaluate response.")
-
+                return 0
     return label
 
-def eval_df(df, is_thinking_model=True, num_workers=50, use_azure=False, multi_choice=False):
+
+def evaluate_longbenchv2_row(row):
+    """
+    Evaluation logic for LongBench-v2 dataset.
+    Extracts choice letter from 'short_response' and compares with 'answer'.
+    """
+    row_data = row[1]
+    gold_answer = row_data["answer"]
+    short_response = row_data["short_response"]
+
+    predicted_answer = extract_answer_letter(str(short_response))
+
+    return 1 if predicted_answer.strip().lower() == gold_answer.strip().lower() else 0
+
+
+def evaluate_ruler_row(row):
+    """
+    Evaluation logic for Ruler dataset.
+    Checks if all items in the gold answer list are present in 'short_response'.
+    """
+    row_data = row[1]
+    gold_answer_list = row_data["answer"]
+    short_response = row_data["short_response"]
+
+    if not short_response:
+        return 0
+
+    if not isinstance(gold_answer_list, list):
+        return 0
+
+    short_response_lower = short_response.lower()
+
+    for answer_item in gold_answer_list:
+        if str(answer_item).lower() not in short_response_lower:
+            return 0
+    return 1
+
+
+# --- Main Eval Function ---
+
+def eval_df(df, dataset_type="default", is_thinking_model=True, num_workers=50, use_azure=False):
+    """
+    Main evaluation function used to evaluate a dataframe of model outputs.
+
+    Args:
+        df: Pandas DataFrame containing model outputs.
+        dataset_type: Type of dataset ("longbench-v2", "ruler", or others for GPT eval).
+        is_thinking_model: Whether the model uses thinking tags (e.g. </think>).
+        num_workers: Number of threads for evaluation.
+        use_azure: Whether to use Azure OpenAI API (for GPT eval).
+    """
 
     if "prompt_len" not in df.columns:
         df['prompt_len'] = df['prompt'].apply(lambda x: len(encoding.encode(x)))
+
     # Explode 'response' column if it's a list (for num_generations > 1)
     num_generations = 1
-    if not isinstance(df['response'].iloc[0], str):
-        num_generations = len(df['response'].iloc[0])
-    df = df.explode('response').reset_index(drop=True)
-    print("Expanded df to {} rows due to {} generations per prompt.".format(len(df), num_generations))
+    if not df.empty and not isinstance(df['response'].iloc[0], str):
+        try:
+            num_generations = len(df['response'].iloc[0])
+            df = df.explode('response').reset_index(drop=True)
+            print("Expanded df to {} rows due to {} generations per prompt.".format(len(df), num_generations))
+        except:
+            pass
 
-    process_row_func=partial(process_row, is_thinking_model=is_thinking_model, use_azure=use_azure)
+    # 1. Pre-calculate short_response for ALL dataset types
+    # This centralizes the extraction and max_len logic
+    df['short_response'] = df['response'].apply(
+        lambda x: extract_short_response(x, is_thinking_model, max_answer_len=4000)
+    )
 
-    if 'judge' not in df.columns:
-        if multi_choice:
-            # Extract answer from response and compare with gold answer directly
-            if is_thinking_model:
-                df['short_response'] = df['response'].apply(
-                    lambda x: x.split("</think>")[-1].strip() if "</think>" in x else "")
-            else:
-                df['short_response'] = df['response']
-            df['predicted_answer'] = df['short_response'].apply(extract_answer)
-            df['judge'] = df.apply(lambda row: row['predicted_answer'].strip().lower() == row['answer'].strip().lower(),
-                                   axis=1).astype(int)
-        else:
-            # Use GPT for evaluation
-            with ThreadPoolExecutor(max_workers=num_workers) as executor:
-                results = list(tqdm(executor.map(process_row_func, df.iterrows()), total=len(df), mininterval=5))
-            df['judge'] = results
+    # 2. Select the appropriate evaluation function based on dataset_type
+    if dataset_type == "longbench-v2":
+        process_row_func = evaluate_longbenchv2_row
+    elif dataset_type == "ruler":
+        process_row_func = evaluate_ruler_row
+    else:
+        # Default to GPT evaluation
+        process_row_func = partial(evaluate_gpt_row, use_azure=use_azure)
 
+    # 3. Execute evaluation using ThreadPoolExecutor for unified parallelism
+    # Note: Even for CPU-bound tasks (longbench/ruler), using ThreadPoolExecutor allows
+    # a unified code structure as requested, though process_map or direct apply could be faster for them.
+    print(f"Starting evaluation for dataset_type: {dataset_type} with {num_workers} workers.")
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        results = list(tqdm(executor.map(process_row_func, df.iterrows()), total=len(df), mininterval=5))
+
+    df['judge'] = results
+
+    # --- Metrics Calculation ---
 
     # 1. Calculate overall accuracy
     accuracy = round(df['judge'].mean(), 3)
 
     # 2. Calculate accuracy by question_type
+    accuracy_by_type = None
     if "question_type" in df.columns:
         accuracy_by_type = df.groupby('question_type')['judge'].mean().to_dict()
         accuracy_by_type = {k: round(v, 3) for k, v in accuracy_by_type.items()}
-    else:
-        accuracy_by_type = None
 
     print("Overall accuracy:", accuracy)
-    # print("Accuracy by question type:", accuracy_by_type)
 
     # 3. Calculate accuracy by prompt_length bin
     bins = [0, 16000, 32000, 64000, 128000, float('inf')]
     labels = ['0-16k', '16-32k', '32-64k', '64-128k', '128k+']
     df['prompt_length_bin'] = pd.cut(df['prompt_len'], bins=bins, labels=labels, right=False)
-    accuracy_by_prompt_length = df.groupby('prompt_length_bin')['judge'].mean().to_dict()
+
+    accuracy_by_prompt_length = df.groupby('prompt_length_bin', observed=False)['judge'].mean().to_dict()
     accuracy_by_prompt_length = {k: round(v, 3) if not pd.isna(v) else 0 for k, v in accuracy_by_prompt_length.items()}
-    # print("Accuracy by prompt length bin:", accuracy_by_prompt_length)
 
     # 4. Calculate 'think' tag missing ratio
+    no_think_tag_ratio = None
     if is_thinking_model:
-        no_think_tag_ratio = round((df['response'].str.contains("</think>") == False).mean(), 3)
-    else:
-        no_think_tag_ratio = None
+        # Handle non-string responses safely
+        no_think_tag_ratio = round((df['response'].apply(lambda x: "</think>" not in str(x))).mean(), 3)
 
     # 5. Calculate response lengths
-    df['response_length'] = df['response'].apply(lambda x: len(encoding.encode(x)))
+    df['response_length'] = df['response'].apply(lambda x: len(encoding.encode(str(x))) if isinstance(x, str) else 0)
     response_mean_len = round(df['response_length'].mean(), 1)
-    response_mean_len_judge_1 = round(df[df['judge'] == 1]['response_length'].mean(), 1) if not df[
-        df['judge'] == 1].empty else 0.0
+
+    correct_df = df[df['judge'] == 1]
+    response_mean_len_judge_1 = round(correct_df['response_length'].mean(), 1) if not correct_df.empty else 0.0
 
     # 6. Calculate Pass@k (if num_generations > 1)
-    accuracy_passk = accuracy  # Default value
-    if 'original_index' in df.columns:  # If explode logic was previously executed
-        # Re-calculate pass@k
+    accuracy_passk = accuracy
+    if 'original_index' in df.columns:
+        # Re-aggregate to calculate pass@k
         df_agg = df.groupby('original_index').agg({
             'question': 'first',
             'answer': 'first',
@@ -205,14 +313,12 @@ def eval_df(df, is_thinking_model=True, num_workers=50, use_azure=False, multi_c
             'response_length': list
         }).reset_index(drop=True)
 
-        # Recalculate overall accuracy (Pass@k)
-        df_agg['judge_agg'] = df_agg['judge'].apply(lambda x: max(x))  # Correct if at least one is correct
+        df_agg['judge_agg'] = df_agg['judge'].apply(lambda x: max(x))
         accuracy_passk = round(df_agg['judge_agg'].mean(), 3)
 
-        # --- Core modification: Build and return the metrics dictionary ---
     metrics = {
         "overall_accuracy": accuracy,
-        "accuracy_passk": accuracy_passk,  # Equal to overall_accuracy if no multi-generation
+        "accuracy_passk": accuracy_passk,
         "accuracy_by_type": accuracy_by_type,
         "accuracy_by_prompt_length": accuracy_by_prompt_length,
         "no_think_tag_ratio": no_think_tag_ratio,
@@ -224,34 +330,39 @@ def eval_df(df, is_thinking_model=True, num_workers=50, use_azure=False, multi_c
     return df, metrics
 
 
-def extract_answer(response):
-    response = response.replace('*', '')
-    # Find all matches, take the last one
-    match=re.findall(r'The correct answer is \(([A-D])\)', response)
-    if match:
-        return match[-1]
-    else:
-        match = re.findall(r'The correct answer is ([A-D])', response)
-        if match:
-            return match[-1]
-        else:
-            return ""
-
 if __name__ == '__main__':
-    df_list=[
+    # Example usage
+    df_list = [
         "./eval_output//longmemeval_qa_Qwen3-4B-Thinking-2507_slide2k_keep10_hf.parquet",
     ]
     for dataset_path in df_list:
-        dataset_name=dataset_path.split("/")[-1].replace(".parquet","")
-        is_thinking_model="thinking" in dataset_path.lower()
-        print("is thinking model:", is_thinking_model)
+        dataset_name = dataset_path.split("/")[-1].replace(".parquet", "")
+        is_thinking_model = "thinking" in dataset_path.lower()
+        print("Is thinking model:", is_thinking_model)
 
         print("Evaluating dataset:", dataset_path)
-        df = pd.read_parquet(dataset_path)
+        # Assuming we can read the file
+        if os.path.exists(dataset_path):
+            df = pd.read_parquet(dataset_path)
 
-        # Evaluate
-        df,metric=eval_df(df, is_thinking_model=is_thinking_model, num_workers=10, use_azure=True,multi_choice=False)
+            # Determine dataset_type based on name or other logic
+            current_dataset_type = "default"
+            if "longbench" in dataset_name.lower():
+                current_dataset_type = "longbench-v2"
+            elif "ruler" in dataset_name.lower():
+                current_dataset_type = "ruler"
 
-        # Save results
-        df.to_parquet(dataset_path)
-        print("Results saved to", dataset_path)
+            # Evaluate
+            df, metric = eval_df(
+                df,
+                is_thinking_model=is_thinking_model,
+                num_workers=10,
+                use_azure=True,
+                dataset_type=current_dataset_type
+            )
+
+            # Save results
+            df.to_parquet(dataset_path)
+            print("Results saved to", dataset_path)
+        else:
+            print(f"File not found: {dataset_path}")

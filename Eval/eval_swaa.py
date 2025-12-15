@@ -356,12 +356,18 @@ def main(swaa_config:SWAAConfig,model_list,dataset_path):
                 try:
                     from gpt_eval import eval_df
 
+                    current_dataset_type = "default"
+                    if "longbench" in dataset_name.lower() and "v2" in dataset_name.lower():
+                        current_dataset_type = "longbench-v2"
+                    elif "ruler" in dataset_name.lower():
+                        current_dataset_type = "ruler"
+
                     # --- Modification: eval_df now returns (ds, metrics) ---
                     ds, metrics = eval_df(ds,
                                           is_thinking_model=is_thinking_model,
                                           use_azure=use_azure,
                                           num_workers=10,
-                                          multi_choice=True if 'longbench' in dataset_name.lower() else False,
+                                          dataset_type=current_dataset_type,
                                           )
 
                     print("Output with accuracy saved to:", output_path)
