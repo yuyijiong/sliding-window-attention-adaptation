@@ -10,9 +10,7 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parent))
 
 import torch
 import vllm
-# import flash_attn_2_cuda_vllm
-# from flash_attn.flash_attn_interface import flash_attn_gpu
-# from vllm import _custom_ops as ops
+
 from vllm.model_executor.models.qwen3 import (AttentionType, extract_layer_index)
 
 from vllm.v1.attention.backends.flash_attn import (FlashAttentionImpl,
@@ -154,44 +152,20 @@ class FlashAttentionImplSWAA(FlashAttentionImpl):
             sinks: Optional[torch.Tensor] = None,
             swaa_config: SWAAConfig = None
     ) -> None:
-        self.num_heads = num_heads
-        self.head_size = head_size
-        self.scale = float(scale)
-        self.num_kv_heads = num_kv_heads
-        if alibi_slopes is not None:
-            alibi_slopes = torch.tensor(alibi_slopes, dtype=torch.float32)
-        self.alibi_slopes = alibi_slopes
-        if sliding_window is None:
-            self.sliding_window = (-1, -1)
-        elif attn_type == AttentionType.ENCODER_ONLY:
-            self.sliding_window = (sliding_window - 1, sliding_window - 1)
-        else:
-            self.sliding_window = (sliding_window - 1, 0)
-        self.kv_cache_dtype = kv_cache_dtype
-        if logits_soft_cap is None:
-            # In flash-attn, setting logits_soft_cap as 0 means no soft cap.
-            logits_soft_cap = 0
-        self.logits_soft_cap = logits_soft_cap
-        self.kv_sharing_target_layer_name = kv_sharing_target_layer_name
+        super().__init__(
+            num_heads=num_heads,
+            head_size=head_size,
+            scale=scale,
+            num_kv_heads=num_kv_heads,
+            alibi_slopes=alibi_slopes,
+            sliding_window=sliding_window,
+            kv_cache_dtype=kv_cache_dtype,
+            logits_soft_cap=logits_soft_cap,
+            attn_type=attn_type,
+            kv_sharing_target_layer_name=kv_sharing_target_layer_name,
+            sinks=sinks,
+        )
 
-        self.num_queries_per_kv = self.num_heads // self.num_kv_heads
-
-        # FlashAttentionBackend.validate_head_size(head_size)
-
-        self.attn_type = attn_type
-        self.vllm_flash_attn_version = 2
-        if is_quantized_kv_cache(self.kv_cache_dtype) \
-                and not flash_attn_supports_fp8():
-            raise NotImplementedError(
-                "FlashAttention does not support fp8 kv-cache on this device.")
-
-        self.sinks = sinks
-        if self.sinks is not None:
-            assert self.vllm_flash_attn_version == 3, (
-                "Sinks are only supported in FlashAttention 3")
-            assert self.sinks.shape[0] == num_heads, (
-                "Sinks must have the same number of heads as the number of "
-                "heads in the layer")
 
         # Sliding Window Attention Adaptation config
         self.sliding_window_size = swaa_config.sliding_window_size
