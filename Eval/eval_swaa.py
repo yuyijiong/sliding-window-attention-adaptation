@@ -2,9 +2,17 @@ import os
 os.environ['SWAA_DEBUG'] = '0' # Print SWAA debug info (1=yes, 0=no)
 os.environ['OPENAI_API_KEY']="" # your openai key
 os.environ['AZURE_API_KEY']=""
+os.environ['PYTHONOPTIMIZE'] = '1'
 
-import sys
 import time
+import multiprocessing
+from multiprocessing import Pool
+import json
+import pandas as pd
+import numpy as np
+import tiktoken
+import pathlib
+import setproctitle
 
 # Hack vllm and transformers for SWAA (Sliding Window Attention Acceleration)
 import sys
@@ -14,14 +22,7 @@ from swaa_patch import SWAAConfig,hack_hf_swaa,hack_vllm_swaa
 hack_hf_swaa(training=False)
 hack_vllm_swaa() # you can comment this line if not using vllm
 
-import multiprocessing
-from multiprocessing import Pool
-import json
-import pandas as pd
-import numpy as np
-import tiktoken
-import pathlib
-import setproctitle
+
 setproctitle.setproctitle("swaa_eval")
 encoding = tiktoken.encoding_for_model('gpt-4o')
 multiprocessing.set_start_method("spawn", force=True)
@@ -89,7 +90,7 @@ def split_df_by_length_fair(df, n_splits, col_to_stratify, num_bins=50, random_s
 def vllm_generate(device_id,ds:pd.DataFrame,model_path,max_prompt_len,max_completion_len,num_generations=1,temperature=0.0,vllm_batch_size=32,swaa_config=None):
     print("Running on device:", device_id)
     # Delay start to avoid simultaneous launches
-    time.sleep(int(device_id)*3)
+    time.sleep(int(device_id))
     os.environ['CUDA_VISIBLE_DEVICES'] = str(device_id)
     from vllm import LLM, SamplingParams
     from tqdm import tqdm
@@ -400,16 +401,17 @@ def get_settings_from_json(json_path)->list:
     return swaa_settings
 
 if __name__ == '__main__':
-    device_list_all = [0,1,2,3,4,5,6,7]  #[1]# [0]#  # GPUs to use
+    device_list_all = [0,1,2,3,4,5,6,7] #[0]# #[1]#   # GPUs to use
     use_vllm=True # Use vllm for generation, otherwise use Hugging Face transformers
     force_recompute=False  # Force recomputing existing output files
 
 
-    dataset_path = "../Datasets/longmemeval_24k.parquet" # Select a dataset to test
+    #dataset_path = "../Datasets/longmemeval_24k.parquet" # Select a dataset to test
     #dataset_path = "../Datasets/longbenchv2_qa.parquet"
+    dataset_path="//share/yyj/llm_as_memory/SWA_adaptation/Datasets/ruler_niah_multiquery_128k.parquet"
 
     sample_first=500  # If not None, only use the first sample_first data points for testing
-    max_prompt_len = 128000 # 40000#
+    max_prompt_len = 138000 # 40000#
     num_generations = 1  # Number of answers to generate per prompt
 
 
@@ -429,7 +431,7 @@ if __name__ == '__main__':
 
     # Read settings_list from json file
     settings_list = get_settings_from_json("settings_list/non_sft_settings_4b.json")
-    #settings_list=settings_list+get_settings_from_json("non_sft_settings_30b.json")
+    settings_list=settings_list+get_settings_from_json("settings_list/sft_models_settings.json")
     print("Starting evaluation of all settings...")
     print(settings_list)
 
