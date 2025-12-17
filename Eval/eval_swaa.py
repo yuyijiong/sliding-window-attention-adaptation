@@ -401,9 +401,9 @@ if __name__ == '__main__':
     force_recompute=False  # Force recomputing existing output files
 
 
-    #dataset_path = "../Datasets/longmemeval_24k.parquet" # Select a dataset to test
+    dataset_path = "../Datasets/longmemeval_24k.parquet" # Select a dataset to test
     #dataset_path = "../Datasets/longbenchv2_qa.parquet"
-    dataset_path="//share/yyj/llm_as_memory/SWA_adaptation/Datasets/ruler_niah_multiquery_32k.parquet"
+    #dataset_path="//share/yyj/llm_as_memory/SWA_adaptation/Datasets/ruler_niah_multiquery_32k.parquet"
 
     sample_first=500  # If not None, only use the first sample_first data points for testing
     max_prompt_len = 38000 # 40000#
@@ -426,8 +426,8 @@ if __name__ == '__main__':
 
     # Read settings_list from json file
     settings_list = get_settings_from_json("settings_list/non_sft_settings_4b.json")
-    settings_list=settings_list+get_settings_from_json("settings_list/sft_models_settings.json")
-    settings_list=settings_list+get_settings_from_json("settings_list/non_sft_settings_30b.json")
+    # settings_list=settings_list+get_settings_from_json("settings_list/sft_models_settings.json")
+    # settings_list=settings_list+get_settings_from_json("settings_list/non_sft_settings_30b.json")
 
     print("Starting evaluation of all settings...")
     print(settings_list)

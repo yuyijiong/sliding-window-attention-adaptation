@@ -332,7 +332,7 @@ def eval_df(df, dataset_type="default", is_thinking_model=True, num_workers=50, 
 if __name__ == '__main__':
     # Example usage
     df_list = [
-        "//share/yyj/llm_as_memory/sliding-window-attention-adaptation/Eval/eval_output/ruler_niah_multiquery_128k/Qwen3-4B-Thinking-2507__vllm.parquet",
+        "./eval_output/ruler_niah_multiquery_128k/Qwen3-4B-Thinking-2507__vllm.parquet",
     ]
     for dataset_path in df_list:
         dataset_name = dataset_path.split("/")[-1].replace(".parquet", "")
