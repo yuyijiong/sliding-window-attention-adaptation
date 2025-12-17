@@ -198,13 +198,10 @@ def evaluate_ruler_row(row):
     Checks if all items in the gold answer list are present in 'short_response'.
     """
     row_data = row[1]
-    gold_answer_list = row_data["answer"]
+    gold_answer_list = list(row_data["answer"])
     short_response = row_data["short_response"]
 
     if not short_response:
-        return 0
-
-    if not isinstance(gold_answer_list, list):
         return 0
 
     short_response_lower = short_response.lower()
@@ -265,17 +262,19 @@ def eval_df(df, dataset_type="default", is_thinking_model=True, num_workers=50, 
         results = list(tqdm(executor.map(process_row_func, df.iterrows()), total=len(df), mininterval=5))
 
     df['judge'] = results
+    #set judge as int
+    df['judge'] = df['judge'].apply(int).astype(object)
 
     # --- Metrics Calculation ---
 
     # 1. Calculate overall accuracy
-    accuracy = round(df['judge'].mean(), 3)
+    accuracy = float(round(df['judge'].mean(), 3))
 
     # 2. Calculate accuracy by question_type
     accuracy_by_type = None
     if "question_type" in df.columns:
         accuracy_by_type = df.groupby('question_type')['judge'].mean().to_dict()
-        accuracy_by_type = {k: round(v, 3) for k, v in accuracy_by_type.items()}
+        accuracy_by_type = {k: float(round(v, 3)) for k, v in accuracy_by_type.items()}
 
     print("Overall accuracy:", accuracy)
 
@@ -285,20 +284,20 @@ def eval_df(df, dataset_type="default", is_thinking_model=True, num_workers=50, 
     df['prompt_length_bin'] = pd.cut(df['prompt_len'], bins=bins, labels=labels, right=False)
 
     accuracy_by_prompt_length = df.groupby('prompt_length_bin', observed=False)['judge'].mean().to_dict()
-    accuracy_by_prompt_length = {k: round(v, 3) if not pd.isna(v) else 0 for k, v in accuracy_by_prompt_length.items()}
+    accuracy_by_prompt_length = {k: float(round(v, 3)) if not pd.isna(v) else 0 for k, v in accuracy_by_prompt_length.items()}
 
     # 4. Calculate 'think' tag missing ratio
     no_think_tag_ratio = None
     if is_thinking_model:
         # Handle non-string responses safely
-        no_think_tag_ratio = round((df['response'].apply(lambda x: "</think>" not in str(x))).mean(), 3)
+        no_think_tag_ratio = float(round((df['response'].apply(lambda x: "</think>" not in str(x))).mean(), 3))
 
     # 5. Calculate response lengths
     df['response_length'] = df['response'].apply(lambda x: len(encoding.encode(str(x))) if isinstance(x, str) else 0)
-    response_mean_len = round(df['response_length'].mean(), 1)
+    response_mean_len = float(round(df['response_length'].mean(), 1))
 
     correct_df = df[df['judge'] == 1]
-    response_mean_len_judge_1 = round(correct_df['response_length'].mean(), 1) if not correct_df.empty else 0.0
+    response_mean_len_judge_1 = float(round(correct_df['response_length'].mean(), 1)) if not correct_df.empty else 0.0
 
     # 6. Calculate Pass@k (if num_generations > 1)
     accuracy_passk = accuracy
@@ -314,7 +313,7 @@ def eval_df(df, dataset_type="default", is_thinking_model=True, num_workers=50, 
         }).reset_index(drop=True)
 
         df_agg['judge_agg'] = df_agg['judge'].apply(lambda x: max(x))
-        accuracy_passk = round(df_agg['judge_agg'].mean(), 3)
+        accuracy_passk = float(round(df_agg['judge_agg'].mean(), 3))
 
     metrics = {
         "overall_accuracy": accuracy,
@@ -333,7 +332,7 @@ def eval_df(df, dataset_type="default", is_thinking_model=True, num_workers=50, 
 if __name__ == '__main__':
     # Example usage
     df_list = [
-        "./eval_output//longmemeval_qa_Qwen3-4B-Thinking-2507_slide2k_keep10_hf.parquet",
+        "//share/yyj/llm_as_memory/sliding-window-attention-adaptation/Eval/eval_output/ruler_niah_multiquery_128k/Qwen3-4B-Thinking-2507__vllm.parquet",
     ]
     for dataset_path in df_list:
         dataset_name = dataset_path.split("/")[-1].replace(".parquet", "")
@@ -347,9 +346,9 @@ if __name__ == '__main__':
 
             # Determine dataset_type based on name or other logic
             current_dataset_type = "default"
-            if "longbench" in dataset_name.lower():
+            if "longbench" in dataset_path.lower():
                 current_dataset_type = "longbench-v2"
-            elif "ruler" in dataset_name.lower():
+            elif "ruler" in dataset_path.lower():
                 current_dataset_type = "ruler"
 
             # Evaluate
@@ -363,6 +362,7 @@ if __name__ == '__main__':
 
             # Save results
             df.to_parquet(dataset_path)
+            print("Metrics:", metric)
             print("Results saved to", dataset_path)
         else:
             print(f"File not found: {dataset_path}")

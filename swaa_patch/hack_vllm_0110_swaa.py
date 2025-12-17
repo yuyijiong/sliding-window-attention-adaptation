@@ -15,6 +15,7 @@ from vllm.model_executor.models.qwen3 import (AttentionType, extract_layer_index
 
 from vllm.v1.attention.backends.flash_attn import (FlashAttentionImpl,
                                                    FlashAttentionMetadata,
+                                                   FlashAttentionMetadataBuilder,
                                                    FlashAttentionBackend,
                                                    cascade_attention, is_quantized_kv_cache, flash_attn_supports_fp8)
 from vllm.vllm_flash_attn.flash_attn_interface import DEFAULT_FA_VERSION, maybe_contiguous
@@ -261,7 +262,8 @@ class FlashAttentionImplSWAA(FlashAttentionImpl):
             key_cache = key_cache.view(dtype)
             value_cache = value_cache.view(dtype)
 
-        if not attn_metadata.use_cascade:
+        #since we use sliding window attention, we will never use cascade attention
+        if not attn_metadata.use_cascade or attn_metadata.use_cascade:
             cu_seqlens_q = attn_metadata.query_start_loc
             seqused_k = attn_metadata.seq_lens
             max_seqlen_q = attn_metadata.max_query_len
@@ -319,34 +321,21 @@ class FlashAttentionImplSWAA(FlashAttentionImpl):
 
             return output
 
-        # Cascade attention (rare case).
-        print("Using cascade attention")
-        cascade_attention(
-            output[:num_actual_tokens],
-            query[:num_actual_tokens],
-            key_cache,
-            value_cache,
-            cu_query_lens=attn_metadata.query_start_loc,
-            max_query_len=attn_metadata.max_query_len,
-            cu_prefix_query_lens=attn_metadata.cu_prefix_query_lens,
-            prefix_kv_lens=attn_metadata.prefix_kv_lens,
-            suffix_kv_lens=attn_metadata.suffix_kv_lens,
-            max_kv_len=attn_metadata.max_seq_len,
-            softmax_scale=self.scale,
-            alibi_slopes=self.alibi_slopes,
-            sliding_window=self.sliding_window,
-            logits_soft_cap=self.logits_soft_cap,
-            block_table=attn_metadata.block_table,
-            common_prefix_len=attn_metadata.common_prefix_len,
-            fa_version=self.vllm_flash_attn_version,
-            prefix_scheduler_metadata=attn_metadata.prefix_scheduler_metadata,
-            suffix_scheduler_metadata=attn_metadata.scheduler_metadata,
-            q_descale=layer._q_scale,
-            k_descale=layer._k_scale,
-            v_descale=layer._v_scale,
-        )
         return output
 
+class FlashAttentionMetadataBuilderSWAA(FlashAttentionMetadataBuilder):
+    def build(
+        self,
+        common_prefix_len: int,
+        common_attn_metadata,
+        fast_build: bool = False,
+    ) -> FlashAttentionMetadata:
+        common_prefix_len=0 # explicitly disable common prefix optimization to avoid use cascade attention when using SWAA
+        return super().build(
+            common_prefix_len,
+            common_attn_metadata,
+            fast_build,
+        )
 
 class LLMSWAA(LLM):
     def __init__(
@@ -533,57 +522,23 @@ class LLMEngineSWAA(LLMEngine):
                    multiprocess_mode=enable_multiprocessing)
 
 
-def from_engine_args_swaa(
-        cls,
-        engine_args: EngineArgs,
-        usage_context: UsageContext = UsageContext.ENGINE_CONTEXT,
-        stat_loggers: Optional[list[StatLoggerFactory]] = None,
-        enable_multiprocessing: bool = False,
-) -> "LLMEngine":
-    """Creates an LLM engine from the engine arguments."""
-
-    # Create the engine configs.
-    vllm_config = engine_args.create_engine_config(usage_context)
-    executor_class = Executor.get_class(vllm_config)
-
-    # Inject SWAA config into vllm_config so it can be accessed by Models
-    vllm_config.swaa_config = engine_args.swaa_config
-
-    if envs.VLLM_ENABLE_V1_MULTIPROCESSING:
-        logger.debug("Enabling multiprocessing for LLMEngine.")
-        enable_multiprocessing = True
-
-    # Create the LLMEngine.
-    return cls(vllm_config=vllm_config,
-               executor_class=executor_class,
-               log_stats=not engine_args.disable_log_stats,
-               usage_context=usage_context,
-               stat_loggers=stat_loggers,
-               multiprocess_mode=enable_multiprocessing)
-
-
-@staticmethod
-def get_impl_cls_swaa() -> type["FlashAttentionImpl"]:
-    return FlashAttentionImplSWAA
+# @staticmethod
+# def get_impl_cls_swaa() -> type["FlashAttentionImpl"]:
+#     return FlashAttentionImplSWAA
 
 
 def hack_vllm_swaa():
     from .vllm_0110_swaa_models import Qwen3ModelSWAA, Qwen2ModelSWAA, LlamaModelSWAA, Qwen3MoeModelSWAA
 
-    # replace get_impl_cls with get_impl_cls_swaa to use custom implementation
-    FlashAttentionBackend.get_impl_cls = get_impl_cls_swaa
+    # replace FlashAttentionImpl and FlashAttentionMetadataBuilder
+    vllm.v1.attention.backends.flash_attn.FlashAttentionImpl = FlashAttentionImplSWAA
+    vllm.v1.attention.backends.flash_attn.FlashAttentionMetadataBuilder = FlashAttentionMetadataBuilderSWAA
 
     # Replace model classes with SWAA-enabled versions
-    # vllm.model_executor.models.transformers.TransformersBase = TransformersBaseSWAA (Removed/Commented out)
-    # vllm.model_executor.models.transformers.TransformersForCausalLM = TransformersForCausalLMSWAA (Removed/Commented out)
-
     vllm.model_executor.models.qwen3.Qwen3Model = Qwen3ModelSWAA
     vllm.model_executor.models.qwen2.Qwen2Model = Qwen2ModelSWAA
     vllm.model_executor.models.llama.LlamaModel = LlamaModelSWAA
     vllm.model_executor.models.qwen3_moe.Qwen3MoeModel = Qwen3MoeModelSWAA
-
-    # replace from_engine_args with from_engine_args_swaa
-    # EngineArgs.from_engine_args = classmethod(from_engine_args_swaa) (Replaced with LLMEngineSWAA.from_engine_args patch)
 
     # replace LLM with LLMSWAA
     vllm.LLM = LLMSWAA
