@@ -3,7 +3,8 @@ os.environ['SWAA_DEBUG'] = '0' # Print SWAA debug info (1=yes, 0=no)
 os.environ['OPENAI_API_KEY']="" # your openai key
 os.environ['AZURE_API_KEY']=""
 os.environ['PYTHONOPTIMIZE'] = '1'
-
+#set the env var VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
+os.environ['VLLM_ALLOW_LONG_MAX_MODEL_LEN']='1'
 import time
 import multiprocessing
 from multiprocessing import Pool
@@ -102,7 +103,7 @@ def vllm_generate(device_id,ds:pd.DataFrame,model_path,max_prompt_len,max_comple
     llm = LLM(model=model_path,
               dtype="float16",
               max_model_len=max_prompt_len+max_completion_len,
-              gpu_memory_utilization=0.6,
+              gpu_memory_utilization=0.95,
               tensor_parallel_size=1,
               trust_remote_code=True,
               enforce_eager=True,
@@ -353,34 +354,34 @@ def main(swaa_config:SWAAConfig,model_list,dataset_path):
             ds.to_parquet(output_path)
             print("Output saved to:", output_path)
 
-        if get_accuracy:
-            from gpt_eval import eval_df
+            if get_accuracy:
+                from gpt_eval import eval_df
 
-            current_dataset_type = "default"
-            if "longbench" in dataset_name.lower() and "v2" in dataset_name.lower():
-                current_dataset_type = "longbench-v2"
-            elif "ruler" in dataset_name.lower():
-                current_dataset_type = "ruler"
+                current_dataset_type = "default"
+                if "longbench" in dataset_name.lower() and "v2" in dataset_name.lower():
+                    current_dataset_type = "longbench-v2"
+                elif "ruler" in dataset_name.lower():
+                    current_dataset_type = "ruler"
 
-            # --- Modification: eval_df now returns (ds, metrics) ---
-            ds, metrics = eval_df(ds,
-                                  is_thinking_model=is_thinking_model,
-                                  use_azure=use_azure,
-                                  num_workers=10,
-                                  dataset_type=current_dataset_type,
-                                  )
+                # --- Modification: eval_df now returns (ds, metrics) ---
+                ds, metrics = eval_df(ds,
+                                      is_thinking_model=is_thinking_model,
+                                      use_azure=use_azure,
+                                      num_workers=10,
+                                      dataset_type=current_dataset_type,
+                                      )
 
-            print("Output with accuracy saved to:", output_path)
-            ds.to_parquet(output_path, index=False)  # Save parquet with judge details
+                print("Output with accuracy saved to:", output_path)
+                ds.to_parquet(output_path, index=False)  # Save parquet with judge details
 
-            # --- Modification: Call new save function ---
-            save_metrics_to_jsonl(
-                file_path=result_jsonl_path,
-                model_name=model_name,
-                use_vllm=use_vllm,
-                swaa_config=swaa_config,
-                metrics=metrics,  # Pass metrics for flattening
-            )
+                # --- Modification: Call new save function ---
+                save_metrics_to_jsonl(
+                    file_path=result_jsonl_path,
+                    model_name=model_name,
+                    use_vllm=use_vllm,
+                    swaa_config=swaa_config,
+                    metrics=metrics,  # Pass metrics for flattening
+                )
 
 
 def get_settings_from_json(json_path)->list:
@@ -396,17 +397,16 @@ def get_settings_from_json(json_path)->list:
     return swaa_settings
 
 if __name__ == '__main__':
-    device_list_all = [1,3,4,5,6,7] #[0]# #[1]#   # GPUs to use
+    device_list_all = [0,1,2,3,4,5,6,7] #[0]# #[1]#   # GPUs to use
     use_vllm=True # Use vllm for generation, otherwise use Hugging Face transformers
-    force_recompute=False  # Force recomputing existing output files
-
+    force_recompute=False  # Force recomputing existing output files and re-calculate accruacy
 
     #dataset_path = "../Datasets/longmemeval_24k.parquet" # Select a dataset to test
     #dataset_path = "../Datasets/longbenchv2_qa.parquet"
-    dataset_path="//share/yyj/llm_as_memory/SWA_adaptation/Datasets/ruler_niah_multiquery_32k.parquet"
+    dataset_path="//share/yyj/llm_as_memory/SWA_adaptation/Datasets/ruler_niah_multiquery_128k.parquet"
 
     sample_first=500  # If not None, only use the first sample_first data points for testing
-    max_prompt_len = 38000 # 40000#
+    max_prompt_len = 138000 # 40000#
     num_generations = 1  # Number of answers to generate per prompt
 
 
@@ -425,9 +425,10 @@ if __name__ == '__main__':
          ]
 
     # Read settings_list from json file
-    settings_list = get_settings_from_json("settings_list/non_sft_settings_4b.json")
-    settings_list=settings_list+get_settings_from_json("settings_list/sft_models_settings.json")
-    settings_list=settings_list+get_settings_from_json("settings_list/non_sft_settings_30b.json")
+    # settings_list = get_settings_from_json("settings_list/non_sft_settings_4b.json")
+    # settings_list=settings_list+get_settings_from_json("settings_list/sft_models_settings.json")
+    settings_list=get_settings_from_json("settings_list/non_sft_settings_30b.json")
+    settings_list=settings_list+get_settings_from_json("settings_list/non_sft_settings_llama3_8b.json")
 
     print("Starting evaluation of all settings...")
     print(settings_list)

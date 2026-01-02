@@ -24,7 +24,7 @@ For time related questions, the gold answer will be a specific date, month, year
 
 If the answer is vague or not specific enough, it should be considered WRONG. For example, if the gold answer is "A shell necklace" and the generated answer is "something from Hawaii", it should be considered WRONG.
 
-The gold answer may contain multiple acceptable answers separated by "or". If the generated answer matches any one of these, it should be considered CORRECT.
+If the gold answer contains multiple acceptable answers separated by "or" and the generated answer matches one of them, it should be considered CORRECT.
 
 Now it's time for the real question:
 Question: {question}
@@ -49,7 +49,7 @@ def vllm_judge(device_id,ds:pd.DataFrame,model_path,max_prompt_len=10000,max_com
     from vllm import LLM, SamplingParams
 
     # The DataFrame slice is handled outside of this function
-    ds['response'] = ""  # Initialize the response column
+    ds['judge_response'] = ""  # Initialize the response column
     ds.reset_index(drop=True, inplace=True)
 
     llm = LLM(model=model_path,
@@ -76,11 +76,11 @@ def vllm_judge(device_id,ds:pd.DataFrame,model_path,max_prompt_len=10000,max_com
         outputs = llm.generate(prompts=batch_prompts, sampling_params=sampling_params, use_tqdm=False)
         if num_generations==1:
             response = [o.outputs[0].text for o in outputs]
-            ds.loc[i:i + batch_size - 1, 'response'] = response
+            ds.loc[i:i + batch_size - 1, 'judge_response'] = response
         else:
             response = [[o.outputs[j].text for j in range(num_generations)] for o in outputs]
             for idx in range(len(response)):
-                ds.at[i + idx, 'response'] = response[idx]
+                ds.at[i + idx, 'judge_response'] = response[idx]
 
     return ds
 
@@ -148,15 +148,13 @@ def vllm_eval(ds,judge_model_path,device_list)->pd.DataFrame:
     # Merge results
     result_df = pd.concat(results, ignore_index=True)
     # Assign 'response' column from result_df to ds based on 'index'
-    if 'response' in ds.columns:
-        ds = ds.drop(columns=['response'])
-    ds = ds.merge(result_df[['index', 'response']], on='index', how='left')
+    ds = ds.merge(result_df[['index', 'judge_response']], on='index', how='left')
 
     # Convert CORRECT/WRONG string in response column to 1/0 in judge column
-    ds['judge'] = ds['response'].apply(lambda x:0 if "WRONG" in x.upper() else 1)
+    ds['judge'] = ds['judge_response'].apply(lambda x:0 if "WRONG" in x.upper() else 1)
 
     # Drop redundant columns
-    ds = ds.drop(columns=['index', 'prompt_for_judge','templated_prompt'])
+    ds = ds.drop(columns=['index', 'prompt_for_judge','templated_prompt',"judge_response"])
 
     return ds
 

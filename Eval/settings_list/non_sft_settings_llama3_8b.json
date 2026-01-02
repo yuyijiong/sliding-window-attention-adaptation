@@ -7,9 +7,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -20,9 +18,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -33,9 +29,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -46,9 +40,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -59,9 +51,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -72,9 +62,7 @@
       "non_sliding_layers": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46]
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -85,9 +73,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -98,9 +84,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -111,9 +95,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -124,9 +106,7 @@
       "non_sliding_layers": []
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -137,9 +117,7 @@
       "non_sliding_layers": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46]
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -150,9 +128,7 @@
       "non_sliding_layers": [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -163,9 +139,7 @@
       "non_sliding_layers": [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44]
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -176,9 +150,7 @@
       "non_sliding_layers": [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46]
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   },
   {
@@ -189,9 +161,7 @@
       "non_sliding_layers": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46]
     },
     "model_list": [
-
-      "/share/models/Qwen3-30B-A3B-Thinking-2507",
-      "/share/models/Qwen3-30B-A3B-Instruct-2507"
+      "/share/models/Meta-Llama-3.1-8B-Instruct"
     ]
   }
 ]

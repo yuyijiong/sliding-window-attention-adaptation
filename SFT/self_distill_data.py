@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+os.environ['PYTHONOPTIMIZE'] = '1'
 
 import multiprocessing
 from multiprocessing import Pool
@@ -10,7 +11,7 @@ import numpy as np
 import tiktoken
 import pathlib
 import setproctitle
-setproctitle.setproctitle("swaa_eval")
+setproctitle.setproctitle("distill_data_generation")
 encoding = tiktoken.encoding_for_model('gpt-4o')
 multiprocessing.set_start_method("spawn", force=True)
 from tqdm import tqdm
@@ -110,7 +111,6 @@ def vllm_generate(device_id,ds:pd.DataFrame,model_path,max_prompt_len,max_comple
         batch_prompts = prompts[i:i + batch_size]
         # Generate output
         outputs = llm.generate(prompts=batch_prompts, sampling_params=sampling_params, use_tqdm=False)
-        llm.reset_prefix_cache()
 
         if num_generations==1:
             response = [o.outputs[0].text for o in outputs]
@@ -258,10 +258,10 @@ def main(model_list,dataset_path):
 
             with Pool(processes=process_num) as pool:
                 results = pool.starmap(generate_func,
-                                       [(device_id, sub_ds, model_path, max_prompt_len, max_completion_len, num_generations, temperature,vllm_batch_size,swaa_config)
+                                       [(device_id, sub_ds, model_path, max_prompt_len, max_completion_len, num_generations, temperature,vllm_batch_size)
                                         for device_id, sub_ds in zip(device_list, ds_folds)])
         else:
-            results = [generate_func(device_list[0], ds, model_path, max_prompt_len, max_completion_len, num_generations, temperature,vllm_batch_size,swaa_config)]
+            results = [generate_func(device_list[0], ds, model_path, max_prompt_len, max_completion_len, num_generations, temperature,vllm_batch_size)]
 
         # Merge results
         result_df = pd.concat(results, ignore_index=True)

@@ -57,3 +57,12 @@ class SWAAConfig:
             mark = (mark + "_fadec") if self.force_fa_decode else mark
 
         return mark
+
+    def dict(self):
+        """转换为字典（如果还没有这个方法）"""
+        return {
+            'sliding_window_size': self.sliding_window_size,
+            'keep_first': self.keep_first,
+            'force_fa_decode': self.force_fa_decode,
+            'non_sliding_layers': list(self.non_sliding_layers)
+        }

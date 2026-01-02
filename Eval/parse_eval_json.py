@@ -30,11 +30,11 @@ def extract_model_name(model_path):
         raise Exception("Unknown model name in path: " + model_path)
 
 if __name__ == '__main__':
-    model_family="qwen3-30b" # Options: "qwen3-4b", "qwen3-30b", "llama-3.1-8b"
+    model_family="qwen3-30b" # Options: "qwen3-4b", "qwen3-30b", "llama3.1-8b"
     thinking_same_row=True # If True, merge 'thinking' and 'instruct' results into the same row
 
     # Load evaluation results
-    df=pd.read_json("./eval_output/result_longmemeval_qa.jsonl",lines=True)
+    df=pd.read_json("./eval_output/result_ruler_niah_multiquery_128k.jsonl",lines=True)
 
     # Use auto_prefill_slide to fill NaN values in force_fa_decode
     if "force_fa_decode" in df.columns and "auto_prefill_slide" in df.columns:
