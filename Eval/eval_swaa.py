@@ -144,7 +144,7 @@ def vllm_generate(device_id,ds:pd.DataFrame,model_path,max_prompt_len,max_comple
 
     return ds
 
-def hf_generate(device_id,ds:pd.DataFrame,model_path,max_prompt_len,max_completion_len,num_generations=1,temperature=0.0,swaa_config=None,*args,**kwargs):
+def hf_generate(device_id,ds:pd.DataFrame,model_path,max_prompt_len,max_completion_len,num_generations=1,temperature=0.0,vllm_batch_size=32,swaa_config=None,*args,**kwargs):
     print("Running on device:", device_id)
     import os
     #os.environ['CUDA_VISIBLE_DEVICES'] = str(device_id)
